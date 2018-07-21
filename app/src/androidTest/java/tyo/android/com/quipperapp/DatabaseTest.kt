@@ -7,9 +7,9 @@ import org.junit.After
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
-import tyo.android.com.quipperapp.videoPlaylist.local.PlaylistDao
-import tyo.android.com.quipperapp.videoPlaylist.local.PlaylistDatabase
-import tyo.android.com.quipperapp.videoPlaylist.local.PlaylistEntity
+import tyo.android.com.quipperapp.videoPlaylist.repository.local.PlaylistDao
+import tyo.android.com.quipperapp.videoPlaylist.repository.local.PlaylistDatabase
+import tyo.android.com.quipperapp.videoPlaylist.repository.local.Video
 
 @RunWith(AndroidJUnit4::class)
 class DatabaseTest {
@@ -29,18 +29,24 @@ class DatabaseTest {
     }
 
     @Test
-    fun insertAndFindAll() {
-        val entity = PlaylistEntity(1,
-                "title",
-                "presentername",
-                "desc",
-                "thumbnailUrl",
-                "videoUrl",
+    fun insertOneVideoThenFindAll() {
+        val video = Video(1,
+                "video_title",
+                "presenter_name",
+                "description",
+                "thumbnail_url",
+                "video_url",
                 5000)
 
-        playlistDatabase.playlistDao().insert(entity)
-        val playlists = playlistDatabase.playlistDao().findAll()
-        assert(playlists.size == 1)
-        assert(playlists[0] == entity)
+        playlistDatabase.playlistDao().insert(video)
+        val playlists = playlistDatabase.playlistDao().findAll().value
+        assert(playlists?.size == 1)
+        assert(playlists?.contains(video) ?: false)
+    }
+
+    @Test
+    fun insertNothingThenFindAll() {
+        val playlists = playlistDatabase.playlistDao().findAll().value
+        assert(playlists == null)
     }
 }
