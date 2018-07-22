@@ -9,7 +9,7 @@ import org.jetbrains.anko.doAsyncResult
 import retrofit2.Call
 import retrofit2.Callback
 import retrofit2.Response
-import tyo.android.com.quipperapp.videoPlaylist.SingleLiveEvent
+import tyo.android.com.quiperapp.common.SingleLiveEvent
 import tyo.android.com.quipperapp.videoPlaylist.repository.local.PlaylistDao
 import tyo.android.com.quipperapp.videoPlaylist.repository.local.Video
 import tyo.android.com.quipperapp.videoPlaylist.repository.network.PlaylistService
@@ -22,18 +22,21 @@ class PlaylistRepository(playlistDao: PlaylistDao, playlistService: PlaylistServ
 
     private val playlistDao = playlistDao
     private val playlistService = playlistService
-    private val playlist: LiveData<List<Video>> = MediatorLiveData<List<Video>>()
+    private val playlist: MediatorLiveData<List<Video>> = MediatorLiveData()
 
     fun loadPlaylist(): LiveData<List<Video>> {
         playlist.let {
-            val mediator = it as MediatorLiveData
-            mediator.addSource(loadFromLocalDB()) { videos ->
+            val dbSource = loadFromLocalDB()
+            playlist.addSource(dbSource) { videos ->
                 if (videos?.size == 0) {
-                    mediator.addSource(loadFromNetwork()){ videos ->
-                        mediator.postValue(videos)
+                    val netSource = loadFromNetwork()
+                    playlist.addSource(netSource){ videos ->
+                        playlist.postValue(videos)
+                        playlist.removeSource(netSource)
                     }
                 } else {
-                    mediator.postValue(videos)
+                    playlist.postValue(videos)
+                    playlist.removeSource(dbSource)
                 }
             }
         }

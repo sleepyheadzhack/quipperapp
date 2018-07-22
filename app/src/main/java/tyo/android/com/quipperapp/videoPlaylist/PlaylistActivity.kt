@@ -4,6 +4,7 @@ import android.arch.lifecycle.Observer
 import android.arch.lifecycle.ViewModelProviders
 import android.support.v7.app.AppCompatActivity
 import android.os.Bundle
+import android.support.v7.util.DiffUtil
 import android.support.v7.widget.LinearLayoutManager
 import android.support.v7.widget.RecyclerView
 import android.view.LayoutInflater
@@ -19,24 +20,45 @@ import tyo.android.com.quipperapp.videoPlaylist.repository.local.Video
 
 class PlaylistActivity : AppCompatActivity() {
 
-    var videos: List<Video> = emptyList()
+    private var playlistVideos: List<Video> = emptyList()
+    private var prevPlaylistSize: Int = 0
     private lateinit var viewModel: PlaylistViewModel
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_playlist)
+
         viewModel = ViewModelProviders.of(this).get(PlaylistViewModel::class.java)
         recyclerPlaylist.layoutManager = LinearLayoutManager(this)
         recyclerPlaylist.adapter = playlistAdapter
 
         viewModel.playlist().observe(this, Observer { videos ->
-            this.videos = videos ?: this.videos
-            playlistAdapter.notifyDataSetChanged()
+            prevPlaylistSize = playlistVideos.size
+            playlistVideos = videos ?: emptyList()
+            DiffUtil.calculateDiff(diffUtilCallback).dispatchUpdatesTo(playlistAdapter)
         })
 
         viewModel.error().observe(this, Observer { msg ->
             Toast.makeText(this, msg, Toast.LENGTH_SHORT).show()
         })
+    }
+
+    private val diffUtilCallback = object: DiffUtil.Callback() {
+        override fun areItemsTheSame(oldItemPosition: Int, newItemPosition: Int): Boolean {
+            return playlistVideos[oldItemPosition].id == playlistVideos[newItemPosition].id
+        }
+
+        override fun getOldListSize(): Int {
+            return prevPlaylistSize
+        }
+
+        override fun getNewListSize(): Int {
+            return playlistVideos.size
+        }
+
+        override fun areContentsTheSame(oldItemPosition: Int, newItemPosition: Int): Boolean {
+            return playlistVideos[oldItemPosition].equals(playlistVideos[newItemPosition])
+        }
     }
 
     private val playlistAdapter = object: RecyclerView.Adapter<VideoViewHolder>() {
@@ -47,16 +69,17 @@ class PlaylistActivity : AppCompatActivity() {
         }
 
         override fun getItemCount(): Int {
-            return videos.size
+            return playlistVideos.size
         }
 
         override fun onBindViewHolder(holder: VideoViewHolder, position: Int) {
-            val video = videos[position]
+            val video = playlistVideos[position]
             Picasso.get().load(video.thumbnailUrl).into(holder.imageVideo)
             holder.textTitle.text = video.title
             holder.textPresenter.text = video.presenterName
             holder.textDescription.text = video.description
-            val minutes = video.videoDuration / (60 * 1000)
+
+            val minutes = video.videoDuration/(60 * 1000)
             val seconds = video.videoDuration/1000 - (minutes * 60)
             holder.textDuration.text = String.format("%02d : %02d", minutes, seconds)
         }
